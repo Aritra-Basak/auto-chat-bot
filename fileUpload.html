@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Upload</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Add SheetJS (XLSX) for Excel file handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>   
+    <style>
+        .upload-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 15px 8px rgba(0,0,0,0.1);
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .upload-box {
+            border: 2px dashed #ddd;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: border 0.3s ease;
+            position: relative;
+        }
+        
+        .upload-box:hover {
+            border-color: #0d6efd;
+        }
+
+        /* Loader Styles */
+        .loader-container {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            justify-content: center;
+            align-items: center;
+            border-radius: 5px;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #307750;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .file-tabs {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .file-tab {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .file-tab.active {
+            background: #307750;
+            color: white;
+            border-color: #307750;
+        }
+
+        /* Sheet Tabs Styles */
+        .sheet-tabs {
+            display: flex;
+            gap: 8px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .sheet-tab {
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .sheet-tab.active {
+            background: #307750;
+            color: white;
+            border-color: #307750;
+        }
+        
+        .columns-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 80vh;
+            overflow: auto;
+            border-radius: 10px;
+            position: relative;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .close-icon {
+            cursor: pointer;
+            font-size: 1.5em;
+            color: #666;
+            transition: color 0.3s;
+        }
+        
+        .close-icon:hover {
+            color: #000;
+        }
+        
+        .columns-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .column-section {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .column-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            gap: 10px;
+        }
+        
+        .column-item.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .new-column-input {
+            margin-top: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            display: none;
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .action-icon {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .action-icon:hover {
+            background: #f8f9fa;
+        }
+        
+        .preview-icon {
+            color: #0d6efd;
+        }
+        
+        .delete-icon {
+            color: #dc3545;
+        }
+        
+        .container-btn-file {
+            display: flex;
+            position: relative;
+            justify-content: center;
+            align-items: center;
+            background-color: #307750;
+            color: #fff;
+            border-style: none;
+            padding: 1em 2em;
+            border-radius: 0.5em;
+            overflow: hidden;
+            z-index: 1;
+            box-shadow: 4px 8px 10px -3px rgba(0, 0, 0, 0.356);
+            transition: all 250ms;
+            height: 40px;
+        }
+        
+        .container-btn-file > svg {
+            margin-right: 1em;
+        }
+        
+        .container-btn-file::before {
+            content: "";
+            position: absolute;
+            height: 100%;
+            width: 0;
+            border-radius: 0.5em;
+            background-color: #469b61;
+            z-index: -1;
+            transition: all 350ms;
+        }
+        
+        .container-btn-file:hover::before {
+            width: 100%;
+        }
+        
+        .generate_btn {
+            border: none;
+            width: 9em;
+            height: 2.5em;
+            border-radius: 3em;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            background: #1C1A1C;
+            cursor: pointer;
+            transition: all 450ms ease-in-out;
+        }
+
+        .sparkle {
+            fill: #AAAAAA;
+            transition: all 800ms ease;
+        }
+
+        .text {
+            font-weight: 600;
+            color: #AAAAAA;
+            font-size: medium;
+        }
+
+        .generate_btn:hover {
+            background: linear-gradient(0deg, #A8E6CE, #44be4a);
+            box-shadow: inset 0px 1px 0px 0px rgba(255, 255, 255, 0.4),
+            inset 0px -4px 0px 0px rgba(0, 0, 0, 0.2),
+            0px 0px 0px 4px rgba(255, 255, 255, 0.2),
+            0px 0px 180px 0px #4CAF50;
+            transform: translateY(-2px);
+        }
+
+        .generate_btn:hover .text {
+            color: white;
+        }
+
+        .generate_btn:hover .sparkle {
+            fill: white;
+            transform: scale(1.2);
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .preview-table th,
+        .preview-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .preview-table th {
+            background-color: #f8f9fa;
+        }
+        .file-info {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .file-info i {
+            color: #307750;
+            font-size: 1.2rem;
+        }
+
+        .file-info p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .initial-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+
+        .initial-info i {
+            color: #307750;
+            font-size: 1.2rem;
+        }
+
+        .initial-info p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .sheet-tabs {
+        display: flex;
+        gap: 8px;
+        margin: 15px 0;
+        flex-wrap: wrap;
+    }
+
+    .sheet-tab {
+        padding: 6px 12px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 0.9em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sheet-tab.active {
+        background: #307750;
+        color: white;
+        border-color: #307750;
+    }
+    
+    .save-button {
+        background: #307750;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: background-color 0.3s;
+    }
+    
+    .save-button:hover {
+        background: #469b61;
+    }
+
+    .filter-keyword-input {
+            margin-top: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            display: none;
+        }
+        .sorting-modal {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease-in-out;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sorting-modal.active {
+            right: 0;
+        }
+        
+        .sorting-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sorting-modal-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .sorting-modal-footer {
+            padding: 20px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .sorting-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sorting-item {
+            padding: 15px;
+            background: #f8f9fa;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .sorting-item:hover {
+            background: #f0f0f0;
+        }
+        
+        .sorting-item.dragging {
+            background: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: scale(1.02);
+        }
+        
+        .sorting-item .drag-handle {
+            color: #666;
+            cursor: move;
+            padding: 4px;
+        }
+        
+        .sorting-item .content {
+            flex: 1;
+        }
+        
+        .sorting-item .column-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .sorting-item .keyword {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .sorting-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease-in-out;
+            z-index: 1000;
+        }
+        
+        .sorting-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: #307750;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            background: #469b61;
+        }
+
+        .module-modal {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 2000;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .module-modal-content {
+        background: white;
+        width: 90%;
+        max-width: 500px;
+        margin: 50px auto;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        transform: translateY(-20px);
+        animation: slideIn 0.3s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+        from { 
+            opacity: 0;
+            transform: translateY(-60px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .module-modal-header {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    .module-modal-header h4 {
+        color: #307750;
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+
+    .module-modal-header p {
+        color: #666;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .module-form-group {
+        margin-bottom: 25px;
+    }
+
+    .module-input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+
+    .module-input:focus {
+        border-color: #307750;
+        box-shadow: 0 0 0 3px rgba(48, 119, 80, 0.1);
+        outline: none;
+    }
+
+    .module-input.error {
+        border-color: #dc3545;
+    }
+
+    .module-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        color: #444;
+        font-weight: 500;
+    }
+
+    .info-icon {
+        color: #307750;
+        cursor: help;
+    }
+
+    .module-error {
+        color: #dc3545;
+        font-size: 14px;
+        margin-top: 5px;
+        display: none;
+    }
+
+    .module-button {
+        width: 100%;
+        padding: 12px;
+        background: #307750;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .module-button:hover {
+        background: #469b61;
+        transform: translateY(-1px);
+    }
+
+    .module-button:active {
+        transform: translateY(1px);
+    }
+
+    .module-name-header {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #419868;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 10px 10px 12px 0px rgba(82, 81, 81, 0.659);
+        }
+    .toast {
+        background-color: #22c56bdc !important;
+        box-shadow: 10px 10px 12px 0px rgba(82, 81, 81, 0.659);
+    }
+
+    .toast.bg-danger {
+        background-color: rgba(222, 31, 50, 0.818) !important;
+        box-shadow: 10px 10px 5px 0px rgba(0,0,0,0.75);
+    }
+
+    </style>
+</head>
+<body>
+    <!-- Toaster from bootstrap -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast align-items-center text-white bg-success border-0" id="successToast" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">
+              <!-- Good Toast message will be inserted here -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+        
+        <div class="toast align-items-center text-white bg-danger border-0" id="errorToast" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">
+              <!-- Error message will be inserted here -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      </div>
+    <div class="container">
+            <!-- Module Name Modal -->
+        <div class="module-modal" id="moduleModal">
+            <div class="module-modal-content">
+                <div class="module-modal-header">
+                    <h4>Welcome to Excel Upload</h4>
+                    <p>Please enter a module name to get started</p>
+                </div>
+                <div class="module-form-group">
+                    <label class="module-label">
+                        Module Name
+                        <i class="fas fa-info-circle info-icon" 
+                        data-toggle="tooltip" 
+                        title="Enter a unique name for your module. This will help identify your uploaded files."></i>
+                    </label>
+                    <input type="text" 
+                        class="module-input" 
+                        id="moduleName" 
+                        placeholder="e.g., Health, Agriculture."
+                        required>
+                    <div class="module-error" id="moduleNameError">Please enter a module name to continue</div>
+                </div>
+                <button class="module-button" onclick="submitModuleName()">
+                    Get Started
+                </button>
+            </div>
+        
+        </div>
+
+        <!-- Module Name Display -->
+        <div class="module-name-header" id="moduleNameDisplay" style="display: none;">
+            Module: <span id="moduleNameText" class="fst-italic"></span>
+        </div>  
+
+            <div class="upload-container">
+                <div class="logo-container">
+                    <svg height="50" width="50" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 511.999 511.999" xml:space="preserve" fill="#000000">
+                        <g>
+                            <polygon style="fill:#2bf7ba;" points="276.484,234.017 138.543,335.02 8.766,270.008"/>
+                            <polygon style="fill:#2bf7ba;" points="309.41,247.714 356.022,443.964 223.579,377.619 188.336,359.969 188.336,359.957 288.964,266.663"/>
+                            <polygon style="fill:#1E91C4;" points="503.203,68.039 309.41,247.714 288.964,266.663 288.566,266.23 276.507,234.017 276.484,234.017"/>
+                            <polygon style="fill:#1E91C4;" points="288.566,266.23 288.964,266.663 188.336,359.957 188.336,359.969 170.487,424.793 137.256,335.955 138.543,335.02 276.484,234.017 276.507,234.017"/>
+                            <polygon style="fill:#1E91C4;" points="223.579,377.619 170.487,424.793 188.336,359.969"/>
+                            <polygon style="fill:#2bf7ba;" points="503.203,68.039 276.484,234.017 8.766,270.008"/>
+                            <polygon style="fill:#2bf7ba;" points="503.227,68.027 356.022,443.964 309.41,247.714 503.203,68.039 503.215,68.027"/>
+                        </g>
+                    </svg>
+                    <h2>Excel Upload</h2>
+                </div>
+                
+                <div class="upload-box" id="dropZone">
+                    <div class="loader-container" id="loaderContainer">
+                        <span class="loader"></span>
+                    </div>
+                    <input type="file" id="fileInput" class="d-none" accept=".xls,.xlsx,.csv" multiple>
+                    <p class="mb-2">Drag & Drop your Excel files here or</p>
+                    <div class="d-flex flex-column justify-content-center align-items-center">
+                        <button type="button" class="container-btn-file mt-2" id="browseButton" onclick="document.getElementById('fileInput').click()">
+                            <svg fill="#fff" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 50 50">
+                                <path d="M28.8125 .03125L.8125 5.34375C.339844 5.433594 0 5.863281 0 6.34375L0 43.65625C0 44.136719 .339844 44.566406 .8125 44.65625L28.8125 49.96875C28.875 49.980469 28.9375 50 29 50C29.230469 50 29.445313 49.929688 29.625 49.78125C29.855469 49.589844 30 49.296875 30 49L30 1C30 .703125 29.855469 .410156 29.625 .21875C29.394531 .0273438 29.105469 -.0234375 28.8125 .03125ZM32 6L32 13L34 13L34 15L32 15L32 20L34 20L34 22L32 22L32 27L34 27L34 29L32 29L32 35L34 35L34 37L32 37L32 44L47 44C48.101563 44 49 43.101563 49 42L49 8C49 6.898438 48.101563 6 47 6ZM36 13L44 13L44 15L36 15ZM6.6875 15.6875L11.8125 15.6875L14.5 21.28125C14.710938 21.722656 14.898438 22.265625 15.0625 22.875L15.09375 22.875C15.199219 22.511719 15.402344 21.941406 15.6875 21.21875L18.65625 15.6875L23.34375 15.6875L17.75 24.9375L23.5 34.375L18.53125 34.375L15.28125 28.28125C15.160156 28.054688 15.035156 27.636719 14.90625 27.03125L14.875 27.03125C14.8125 27.316406 14.664063 27.761719 14.4375 28.34375L11.1875 34.375L6.1875 34.375L12.15625 25.03125ZM36 20L44 20L44 22L36 22ZM36 27L44 27L44 29L36 29ZM36 35L44 35L44 37L36 37Z"></path>
+                            </svg>
+                            Browse Files
+                        </button>
+                        <!-- Initial info message -->
+                        <div class="initial-info">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Upload Excel files to begin</p>
+                        </div>
+                        <!-- File info message (hidden initially) -->
+                        <div class="file-info" id="fileInfo">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Click on the file name to get detailed view of the doc</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="file-tabs" id="fileTabs">
+                    
+                </div>
+
+
+                <div class="d-flex justify-content-center mt-3">
+                    <button class="generate_btn" id="generateButton">
+                        <svg height="24" width="24" fill="#FFFFFF" viewBox="0 0 24 24" data-name="Layer 1" id="Layer_1" class="sparkle">
+                            <path d="M10,21.236,6.755,14.745.264,11.5,6.755,8.255,10,1.764l3.245,6.491L19.736,11.5l-6.491,3.245ZM18,21l1.5,3L21,21l3-1.5L21,18l-1.5-3L18,18l-3,1.5ZM19.333,4.667,20.5,7l1.167-2.333L24,3.5,21.667,2.333,20.5,0,19.333,2.333,17,3.5Z"></path>
+                        </svg>
+                        <span class="text">Generate</span>
+                    </button>
+                </div>
+            </div>
+    </div>
+
+    <!-- Columns Modal -->
+    <div class="columns-modal" id="columnsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h4 class="modal-title">File Columns</h4>
+                    <small id="columnModalFileName" class="text-muted fw-bolder fst-italic"></small>
+                </div>
+                <i class="fas fa-times close-icon" onclick="closeModal()"></i>
+            </div>
+            <div class="sheet-tabs" id="sheetTabs"></div>
+            <div class="columns-grid">
+                <div class="column-section">
+                    <h5>Mapped Columns</h5>
+                    <div id="mappedColumns"></div>
+                </div>
+                <div class="column-section">
+                    <h5>Filter Columns</h5>
+                    <div id="filterColumns"></div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <button class="save-button" onclick="saveColumnSettings()">Save Settings</button>
+                <div class="modal-actions">
+                    <i class="fas fa-light fa-list" title="Sorting File" onclick="showSortingModal()" style="padding: 8px;cursor: pointer;"></i>
+                    <i class="fas fa-eye action-icon preview-icon" title="Preview File" onclick="previewFile()"></i>
+                    <i class="fas fa-trash action-icon delete-icon" title="Delete File" onclick="deleteFile()"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="columns-modal" id="previewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h4>File Preview</h4>
+                    <small id="previewFileName" class="text-muted fw-bolder fst-italic"></small>
+                </div>
+                <i class="fas fa-times close-icon" onclick="closePreviewModal()"></i>
+            </div>
+            <div id="previewData"></div>
+        </div>
+    </div>
+
+    <div class="sorting-overlay" id="sortingOverlay"></div>
+    <div class="sorting-modal" id="sortingModal">
+        <div class="sorting-modal-header">
+            <h5>Arrange Filter Order</h5>
+            <i class="fas fa-times close-icon" onclick="closeSortingModal()"></i>
+        </div>
+        <div class="sorting-modal-body">
+            <ul class="sorting-list" id="sortingList"></ul>
+        </div>
+        <div class="sorting-modal-footer">
+            <button class="btn-secondary" onclick="closeSortingModal()">Cancel</button>
+            <button class="btn-primary" onclick="saveFilterOrder()">Save Order</button>
+        </div>
+    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+let uploadedFiles = new Map();
+let activeFileId = null;
+let activeSheetName = null;
+let selectedSheets = new Map();
+const report = [];
+
+// When the dom gets fully loaded, like $(document.ready)
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileTabs = document.getElementById('fileTabs');
+    const generateButton = document.getElementById('generateButton');
+    const loaderContainer = document.getElementById('loaderContainer');
+    document.getElementById('moduleModal').style.display = 'block';
+    
+    // adds listeners to prevent default behavior like dragenter, dragover....
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    //Adds a listener to handle file selection when the input changes.
+    fileInput.addEventListener('change', handleFiles, false);   
+    //Handles file drops in the drop zone.
+    dropZone.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        handleFiles({ target: { files: dt.files } });
+    }, false);
+    
+    generateButton.addEventListener('click', generateReport);
+});
+
+function showToast(message, isError = false) {
+    const toastElement = document.getElementById(isError ? 'errorToast' : 'successToast');
+    const toastBody = toastElement.querySelector('.toast-body');
+    toastBody.textContent = message;
+    
+    const toast = new bootstrap.Toast(toastElement, {
+        animation: true,
+        autohide: true,
+        delay: 3000
+    });
+    
+    toast.show();
+}
+
+
+
+function submitModuleName() {
+    const moduleNameInput = document.getElementById('moduleName');
+    const moduleNameError = document.getElementById('moduleNameError');
+    const moduleValue = moduleNameInput.value.trim();
+
+    if (!moduleValue) {
+        moduleNameError.style.display = 'block';
+        moduleNameInput.classList.add('error');
+        showToast('Please enter a module name', true);
+        return;
+    }
+
+    moduleName = moduleValue;
+    document.getElementById('moduleModal').style.display = 'none';
+    
+    // Show module name in header
+    const moduleNameDisplay = document.getElementById('moduleNameDisplay');
+    const moduleNameText = document.getElementById('moduleNameText');
+            moduleNameText.textContent = moduleName;
+            moduleNameDisplay.style.display = 'block';
+
+    showToast('Module created successfully!');
+}
+
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+function showLoader() {
+    document.getElementById('loaderContainer').style.display = 'flex';
+    document.getElementById('browseButton').style.display='none'
+}
+
+function hideLoader() {
+    document.getElementById('loaderContainer').style.display = 'none';
+    document.getElementById('browseButton').style.display='flex'
+}
+
+// Handles the file input or drop event, processes the files, and uploads them.
+async function handleFiles(e) {
+    const files = Array.from(e.target.files);
+    showLoader();
+    
+    try {
+        for (const file of files) {
+            // Create unique file ID
+            const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            
+            // Upload to API first
+            await uploadFileToAPI(file);
+            
+            // Then process for local display
+            await uploadFile(file, fileId);
+        }
+    } catch (error) {
+        console.error('Error handling files:', error);
+        showToast('Error processing files. Please try again.', true);
+    } finally {
+        hideLoader();
+    }
+}
+
+// Function to upload file to API
+async function uploadFileToAPI(file) {
+    try {
+        // Create FormData object
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Make API request
+        const response = await fetch('http://104.211.222.31:1215/upload', {
+            method: 'POST',
+            body: formData,
+            // Remove headers as FormData sets the correct Content-Type automatically
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('File uploaded successfully:', data);
+        showToast('File uploaded to server successfully!');
+        
+        return data;
+    } catch (error) {
+        console.error('Error uploading file to API:', error);
+        showToast('Error uploading file to server. Please try again.', true);
+        throw error; // Re-throw to be caught by the caller
+    }
+}
+
+// Uploads a file and processes its contents.
+async function uploadFile(file, fileId) {
+    return new Promise((resolve, reject) => {
+        const tab = document.createElement('div');
+        tab.className = 'file-tab';
+        tab.setAttribute('data-file-id', fileId);
+        tab.innerHTML = `${file.name} <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+        tab.onclick = () => openColumnsModal(fileId);
+        
+        const fileTabs = document.getElementById('fileTabs');
+        fileTabs.appendChild(tab);
+        
+        // Hide initial info and show file info
+        document.querySelector('.initial-info').style.display = 'none';
+        document.getElementById('fileInfo').style.display = 'flex';
+        document.getElementById('generateButton').style.display = 'flex';
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                const sheets = {};
+                workbook.SheetNames.forEach(sheetName => {
+                    const sheet = workbook.Sheets[sheetName];
+                    sheets[sheetName] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                });
+                
+                uploadedFiles.set(fileId, {
+                    file: file,
+                    sheets: sheets,
+                    activeSheet: workbook.SheetNames[0],
+                    mappedColumns: {},
+                    filteredColumns: {},
+                    savedSettings: {}
+                });
+                
+                resolve();
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function openColumnsModal(fileId) {
+    activeFileId = fileId;
+    const fileData = uploadedFiles.get(fileId);
+    if (!fileData) return;
+    
+    document.getElementById('columnModalFileName').textContent = fileData.file.name;
+    
+    // Create sheet tabs without checkboxes
+    const sheetTabs = document.getElementById('sheetTabs');
+    sheetTabs.innerHTML = '';
+    
+    Object.keys(fileData.sheets).forEach(sheetName => {
+        const sheetTab = document.createElement('div');
+        sheetTab.className = `sheet-tab ${sheetName === fileData.activeSheet ? 'active' : ''}`;
+        sheetTab.innerHTML = `<span>${sheetName}</span>`;
+        
+        // Add click handler for the span (sheet name)
+        sheetTab.querySelector('span').onclick = () => changeSheet(sheetName);
+        
+        sheetTabs.appendChild(sheetTab);
+    });
+    
+    // Load columns for active sheet
+    loadColumnsForSheet(fileData.activeSheet);
+    
+    document.getElementById('columnsModal').style.display = 'block';
+}
+
+function changeSheet(sheetName) {
+    const fileData = uploadedFiles.get(activeFileId);
+    if (!fileData) return;
+    
+    fileData.activeSheet = sheetName;
+    uploadedFiles.set(activeFileId, fileData);
+    
+    // Update sheet tabs
+    document.querySelectorAll('.sheet-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.querySelector('span').textContent === sheetName);
+    });
+    
+    // Load columns for new sheet
+    loadColumnsForSheet(sheetName);
+}
+
+function loadColumnsForSheet(sheetName) {
+    const fileData = uploadedFiles.get(activeFileId);
+    if (!fileData || !fileData.sheets[sheetName] || !fileData.sheets[sheetName][0]) return;
+    
+    const headers = fileData.sheets[sheetName][0];
+    const mappedColumns = document.getElementById('mappedColumns');
+    const filterColumns = document.getElementById('filterColumns');
+    
+    mappedColumns.innerHTML = '';
+    filterColumns.innerHTML = '';
+    
+    // Load saved settings if they exist
+    const savedSettings = fileData.savedSettings[sheetName] || {};
+    
+    headers.forEach((column, index) => {
+        if (column) {
+            // Mapped columns
+            const mappedItem = document.createElement('div');
+            mappedItem.className = 'column-item';
+            mappedItem.innerHTML = `
+                <div class="d-flex flex-column">
+                    <div>
+                        <input type="checkbox" id="mapped_${index}" 
+                            class="mapped-checkbox" 
+                            data-column="${column}"
+                            ${savedSettings.mappedColumns?.[column] ? 'checked' : ''}>
+                        <label for="mapped_${index}">${column}</label>
+                    </div>
+                    <div>
+                        <input type="text" 
+                            class="form-control new-column-input" 
+                            placeholder="New column name"
+                            value="${savedSettings.mappedColumns?.[column] || ''}"
+                            style="display: ${savedSettings.mappedColumns?.[column] ? 'block' : 'none'}">
+                    </div>
+                </div>`;
+            mappedColumns.appendChild(mappedItem);
+            
+            // Filter columns
+            const filterItem = document.createElement('div');
+                    filterItem.className = `column-item ${savedSettings.mappedColumns?.[column] ? 'disabled' : ''}`;
+                    filterItem.setAttribute('data-column', column);
+                    filterItem.innerHTML = `
+                        <div class="d-flex flex-column">
+                            <div>
+                                <input type="checkbox" 
+                                    id="filter_${index}" 
+                                    class="filter-checkbox"
+                                    ${savedSettings.filteredColumns?.[column]?.enabled ? 'checked' : ''}>
+                                <label for="filter_${index}">${column}</label>
+                            </div>
+                            <div>
+                                <input type="text" 
+                                    class="form-control filter-keyword-input" 
+                                    placeholder="Keyword"
+                                    value="${savedSettings.filteredColumns?.[column]?.keyword || ''}"
+                                    style="display: ${savedSettings.filteredColumns?.[column]?.enabled ? 'block' : 'none'}">
+                            </div>
+                        </div>`;
+                    filterColumns.appendChild(filterItem);
+                }
+            });
+            
+            // Add event listeners
+            addColumnEventListeners();
+}
+
+function addColumnEventListeners() {
+    // Mapped columns listeners
+    document.querySelectorAll('.mapped-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const column = this.getAttribute('data-column');
+            const input = this.closest('.column-item').querySelector('.new-column-input');
+            const filterItem = document.querySelector(`.column-item[data-column="${column}"]`);
+            
+            input.style.display = this.checked ? 'block' : 'none';
+            
+            if (this.checked) {
+                //If a column from Mapped Column Name is checked then it's get disabled in the Filtered Column Section...
+                filterItem.classList.add('disabled');
+                filterItem.querySelector('input[type="checkbox"]').checked = false;
+                updateFilteredColumns();
+            } else {
+                filterItem.classList.remove('disabled');
+            }
+        });
+    });
+
+    // Filter columns listeners
+    document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const input = this.closest('.column-item').querySelector('.filter-keyword-input');
+            
+            if (this.checked) {
+                input.style.display = 'block';
+            } else {
+                input.style.display = 'none';
+                input.value = '';
+            }
+        });
+    });
+
+    // Filter keyword input listeners
+    document.querySelectorAll('.filter-keyword-input').forEach(input => {
+        input.addEventListener('input', function() {
+            // No immediate save - wait for save button
+        });
+    });
+}
+
+function updateMappedColumns() {
+    if (!activeFileId) return;
+    
+    const fileData = uploadedFiles.get(activeFileId);
+    const sheetName = fileData.activeSheet;
+    const mappedColumns = {};
+    
+    document.querySelectorAll('.mapped-checkbox:checked').forEach(checkbox => {
+        const column = checkbox.getAttribute('data-column');
+        const newName = checkbox.closest('.column-item').querySelector('.new-column-input').value.trim();
+        // Use the new column name as value if provided, otherwise use the original column name
+        mappedColumns[column] = newName || column;
+    });
+    
+    if (!fileData.mappedColumns) {
+        fileData.mappedColumns = {};
+    }
+    fileData.mappedColumns[sheetName] = mappedColumns;
+    uploadedFiles.set(activeFileId, fileData);
+}
+
+function updateFilteredColumns() {
+    if (!activeFileId) return;
+    
+    const fileData = uploadedFiles.get(activeFileId);
+    const sheetName = fileData.activeSheet;
+    const filteredColumns = {};
+    
+    document.querySelectorAll('.filter-checkbox:checked').forEach(checkbox => {
+        const columnItem = checkbox.closest('.column-item');
+        const column = columnItem.getAttribute('data-column');
+        const keywordInput = columnItem.querySelector('.filter-keyword-input');
+        
+        filteredColumns[column] = {
+            enabled: true,
+            keyword: keywordInput ? keywordInput.value.trim() : ''
+        };
+    });
+    
+    if (!fileData.filteredColumns) {
+        fileData.filteredColumns = {};
+    }
+    fileData.filteredColumns[sheetName] = filteredColumns;
+    uploadedFiles.set(activeFileId, fileData);
+}
+
+function saveColumnSettings() {
+    if (!activeFileId) return;
+    
+    const fileData = uploadedFiles.get(activeFileId);
+    const sheetName = fileData.activeSheet;
+    
+    // Update mapped and filtered columns
+    updateMappedColumns();
+    updateFilteredColumns();
+    
+    // Store the settings
+    if (!fileData.savedSettings) {
+        fileData.savedSettings = {};
+    }
+    
+    fileData.savedSettings[sheetName] = {
+        mappedColumns: {...fileData.mappedColumns[sheetName]},
+        filteredColumns: {...fileData.filteredColumns[sheetName]}
+    };
+    
+    uploadedFiles.set(activeFileId, fileData);
+    
+    showToast('Settings saved successfully!');
+    closeModal();
+}
+
+
+function closeModal() {
+    document.getElementById('columnsModal').style.display = 'none';
+    activeFileId = null;
+}
+
+function previewFile() {
+    if (!activeFileId) return;
+    
+    const fileData = uploadedFiles.get(activeFileId);
+    const sheetData = fileData.sheets[fileData.activeSheet];
+    
+    if (!sheetData || !sheetData.length) {
+        showToast('No data available for preview');
+        return;
+    }
+    
+    document.getElementById('previewFileName').textContent = `${fileData.file.name} - ${fileData.activeSheet}`;
+    const previewData = document.getElementById('previewData');
+    previewData.innerHTML = '';
+    
+    const table = document.createElement('table');
+    table.className = 'preview-table table table-striped';
+    
+    // Handle headers
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    if (sheetData[0]) {
+        sheetData[0].forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header || 'Unnamed Column';
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+    }
+    
+    // Handle data rows
+    const tbody = document.createElement('tbody');
+    const maxRows = Math.min(sheetData.length, 10);
+    
+    for (let i = 1; i < maxRows; i++) {
+        const row = document.createElement('tr');
+        if (sheetData[i]) {
+            sheetData[i].forEach(cell => {
+                const td = document.createElement('td');
+                td.textContent = cell ?? '';
+                row.appendChild(td);
+            });
+            tbody.appendChild(row);
+        }
+    }
+    
+    table.appendChild(tbody);
+    previewData.appendChild(table);
+    document.getElementById('previewModal').style.display = 'block';
+}
+
+function closePreviewModal() {
+    document.getElementById('previewModal').style.display = 'none';
+}
+
+function deleteFile() {
+    if (!activeFileId) return;
+    
+    uploadedFiles.delete(activeFileId);
+    selectedSheets.delete(activeFileId);
+    document.querySelector(`[data-file-id="${activeFileId}"]`).remove();
+    closeModal();
+    
+    if (uploadedFiles.size === 0) {
+        document.getElementById('generateButton').style.display = 'none';
+        document.getElementById('fileInfo').style.display = 'none';
+        document.querySelector('.initial-info').style.display = 'flex';
+    }
+}
+
+function showSortingModal() {
+            const sortingModal = document.getElementById('sortingModal');
+            const sortingOverlay = document.getElementById('sortingOverlay');
+            const sortingList = document.getElementById('sortingList');
+            
+            // Clear existing list
+            sortingList.innerHTML = '';
+            
+            // Add selected filters to sorting list
+            document.querySelectorAll('.filter-checkbox:checked').forEach(checkbox => {
+                const columnItem = checkbox.closest('.column-item');
+                const column = columnItem.getAttribute('data-column');
+                const keywordInput = columnItem.querySelector('.filter-keyword-input');
+                const keyword = keywordInput ? keywordInput.value.trim() : '';
+                
+                const li = document.createElement('li');
+                li.className = 'sorting-item';
+                li.setAttribute('data-column', column);
+                li.setAttribute('draggable', true);
+                li.innerHTML = `
+                    <div class="drag-handle">
+                        <i class="fas fa-grip-vertical"></i>
+                    </div>
+                    <div class="content">
+                        <div class="column-name">${column}</div>
+                        <div class="keyword">Keyword: ${keyword || 'None'}</div>
+                    </div>
+                `;
+                sortingList.appendChild(li);
+            });
+            
+            // Show modal and overlay with animation
+            sortingOverlay.classList.add('active');
+            setTimeout(() => {
+                sortingModal.classList.add('active');
+            }, 50);
+            
+            // Initialize drag and drop
+            initializeSortable();
+    }
+        
+function initializeSortable() {
+    const sortingList = document.getElementById('sortingList');
+    let draggedItem = null;
+    
+    document.querySelectorAll('.sorting-item').forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            draggedItem = this;
+            this.classList.add('dragging');
+            // Set ghost drag image
+            const ghost = this.cloneNode(true);
+            ghost.style.opacity = '0.5';
+            document.body.appendChild(ghost);
+            e.dataTransfer.setDragImage(ghost, 0, 0);
+            setTimeout(() => document.body.removeChild(ghost), 0);
+        });
+        
+        item.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+            draggedItem = null;
+        });
+        
+        item.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+    });
+    
+    sortingList.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(this, e.clientY);
+        const draggable = document.querySelector('.dragging');
+        if (draggable) {
+            if (afterElement) {
+                this.insertBefore(draggable, afterElement);
+            } else {
+                this.appendChild(draggable);
+            }
+        }
+    });
+}
+        
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.sorting-item:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+        
+function closeSortingModal() {
+    const sortingModal = document.getElementById('sortingModal');
+    const sortingOverlay = document.getElementById('sortingOverlay');
+    
+    sortingModal.classList.remove('active');
+    sortingOverlay.classList.remove('active');
+}
+        
+function saveFilterOrder() {
+    if (!activeFileId) return;
+
+    const fileData = uploadedFiles.get(activeFileId);
+    const sheetName = fileData.activeSheet;
+
+    // Get the ordered columns with their keywords
+    const orderedFilters = Array.from(document.querySelectorAll('#sortingList .sorting-item'))
+        .map(item => {
+            const column = item.getAttribute('data-column');
+            const filterItem = document.querySelector(`.column-item[data-column="${column}"]`);
+            const keywordInput = filterItem.querySelector('.filter-keyword-input');
+            
+            return {
+                column: column,
+                keyword: keywordInput ? keywordInput.value.trim() : ''
+            };
+        });
+
+    // Store the order and keywords in the file data
+    if (!fileData.filterOrder) {
+        fileData.filterOrder = {};
+    }
+    fileData.filterOrder[sheetName] = orderedFilters;
+
+    uploadedFiles.set(activeFileId, fileData);
+    closeSortingModal();
+
+    // Show success message
+    showToast('Filter order saved successfully!');
+}
+
+function generateReport() {
+    // Get the module name from the display
+    const moduleName = document.getElementById('moduleNameText').textContent;
+    
+    const apiRequestBody = {
+        module: {
+            name: moduleName,
+            file: []
+        }
+    };
+
+    uploadedFiles.forEach((fileData, fileId) => {
+        // Process each sheet in the file
+        Object.keys(fileData.savedSettings || {}).forEach(sheetName => {
+            // Create a file object for the current file
+            const fileObject = {
+                filename: fileData.file.name,
+                mapped_columns: {},
+                sorted_cols: [],
+                keywords: {}
+            };
+
+            // Process mapped columns
+            const mappings = fileData.savedSettings[sheetName].mappedColumns || {};
+            Object.entries(mappings).forEach(([originalName, newName]) => {
+                fileObject.mapped_columns[originalName] = newName;
+            });
+
+            // Process sorted columns
+            if (fileData.filterOrder?.[sheetName]) {
+                fileObject.sorted_cols = fileData.filterOrder[sheetName]
+                    .map(item => item.column);
+            }
+
+            // Process keywords
+            const filteredColumns = fileData.savedSettings[sheetName].filteredColumns || {};
+            Object.entries(filteredColumns).forEach(([columnName, settings]) => {
+                if (settings.enabled && settings.keyword) {
+                    const keywordArray = settings.keyword
+                        .split(',')
+                        .map(k => k.trim())
+                        .filter(k => k.length > 0);
+
+                    if (keywordArray.length > 0) {
+                        if (!fileObject.keywords[columnName]) {
+                            fileObject.keywords[columnName] = {};
+                        }
+                        
+                        const mainValue = keywordArray[0];
+                        const values = keywordArray.length > 1 ? 
+                            keywordArray.slice(1) : 
+                            [mainValue];
+                        
+                        fileObject.keywords[columnName]= values;
+                    }
+                }
+            });
+
+            if (Object.keys(fileObject.mapped_columns).length > 0 || 
+                fileObject.sorted_cols.length > 0 || 
+                Object.keys(fileObject.keywords).length > 0) {
+                apiRequestBody.module.file.push(fileObject);
+            }
+        });
+    });
+
+    fetch("http://104.211.222.31:1215/create_module_patterns", {
+        method: "POST",
+        body: JSON.stringify({
+            apiRequestBody
+        }),
+        headers: {
+            "Content-type": "application/json; charset=UTF-8"
+        }
+    })
+    .then((response) => {
+        if (!response.ok) {
+            showToast(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then((json) => {
+        console.log(json);
+        const filePath = json.filepath;
+
+        if (!filePath) {
+            console.error('File path is missing in the response');
+            showToast('File path is missing in the response');
+            return;
+        }
+
+        
+        // Check if the processFileBtn already exists
+        if (!document.getElementById('processFileBtn')) {
+            // Create button container
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'text-center mt-4';   
+            buttonContainer.innerHTML = `
+                <button id="processFileBtn" class="btn btn-success d-flex align-items-center justify-content-center mx-auto gap-2">
+                    <i class="fas fa-arrow-right"></i>
+                    Proceed to ChatBot
+                </button>
+            `;
+        }
+        
+        // Add button to container
+        const uploadContainer = document.querySelector('.upload-container');
+        uploadContainer.appendChild(buttonContainer);
+        
+        // Add click event listener
+        document.getElementById('processFileBtn').addEventListener('click', async () => {
+            try {
+               
+                window.open(`${window.location.origin}/index.html?module=${moduleName}`, '_blank');
+
+                // Post filePath to API
+                const runResponse = await fetch("http://104.211.222.31:1215/run_app", {
+                    method: "POST",
+                    body: JSON.stringify({ filePath }),
+                    headers: {
+                        "Content-type": "application/json; charset=UTF-8"
+                    }
+                });
+
+                if (!runResponse.ok) {
+                    showToast(`Error processing file path: ${runResponse.status}`);
+                } else {
+                    const element = document.getElementById("processFileBtn");
+                    element.remove();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error processing file path', true);
+            }
+        });
+        
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error generating report', true);
+    });
+}
+</script>
+</body>
+</html>

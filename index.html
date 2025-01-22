@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Interface</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .mainContainer {
+            height: 100vh;
+            width: 100vw;
+            background-color: whitesmoke;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-widget {
+            position: relative;
+        }
+
+        .loading-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(162deg, rgba(38,49,221,1) 18%, rgba(2,192,253,1) 89%);
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: bounce 1.5s infinite ease-in-out;
+            z-index: 2000;
+        }
+
+        .chat-window {
+            display: none;
+            width: 450px;
+            height: 625px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            overflow: hidden;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+
+        .chat-window.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .chat-header {
+            background: linear-gradient(162deg, rgba(38,49,221,1) 18%, rgba(2,192,253,1) 89%);
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+
+        .chat-body {
+            height: calc(100% - 160px);
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            max-width: 80%;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .message-icon {
+            width: 30px;
+            height: 30px;
+            flex-shrink: 0;
+        }
+
+        .message.user-message {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .message-content {
+            max-width: calc(100% - 40px);
+        }
+
+        .user-message .message-content {
+            background: #0084ff;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            border: 0.5px solid #f1f6f8;
+        }
+
+        .bot-message .message-content {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 18px;
+            border: 0.5px solid #02c0fd;
+            font-size: 14px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .chat-footer {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            background: white;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .input-group {
+            background: #f8f9fa;
+            border-radius: 25px;
+            padding: 5px;
+        }
+
+        .input-group .form-control {
+            border: none;
+            background: transparent;
+            box-shadow: none;
+            padding-left: 15px;
+        }
+
+        .input-group .form-control:focus {
+            box-shadow: none;
+        }
+
+        .btn-send {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(162deg, rgba(38,49,221,1) 18%, rgba(2,192,253,1) 89%);
+            border: none;
+            margin-right: 5px;
+        }
+
+        .btn-send:hover {
+            background: #0073e6;
+        }
+
+        .response-rating {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+            margin-left: 40px;
+        }
+
+        .rating-button {
+            background: none;
+            border: none;
+            color: #6c757d;
+            font-size: 16px;
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .rating-button:hover {
+            color: #0084ff;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translate(-50%, -50%) translateY(0);
+            }
+            50% {
+                transform: translate(-50%, -50%) translateY(-5px);
+            }
+        }
+
+        @keyframes blinkGreen {
+            0% { color: inherit; }
+            50% { color: #25d955; }
+            100% { color: inherit; }
+        }
+
+        @keyframes blinkRed {
+            0% { color: inherit; }
+            50% { color: #dc3545; }
+            100% { color: inherit; }
+        }
+
+        .blink-green {
+            animation: blinkGreen 2s ease;
+        }
+
+        .blink-red {
+            animation: blinkRed 2s ease;
+        }
+
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.animate-message {
+            animation: slideIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 18px;
+            border: 0.5px solid #02c0fd;
+            font-size: 14px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            color: #555;
+            max-width: 250px;
+            word-wrap: break-word;
+        }
+
+        .bubble-loader {
+            display: flex;
+            gap: 5px;
+        }
+
+        .bubble {
+            width: 8px;
+            height: 8px;
+            background-color: #555;
+            border-radius: 50%;
+            animation: bubble-animation 1.2s infinite;
+        }
+
+        .bubble:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .bubble:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bubble-animation {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+        
+        #closeChat:hover {
+            color: #ff4d4d !important;
+            transition: color 0.2s ease;
+        }
+        .chat-body::-webkit-scrollbar {
+        width: 8px;
+        }
+
+        .chat-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb {
+            background: #bfbfbf;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb:hover {
+            background: #999999;
+        }
+
+        /* For Firefox */
+        .chat-body {
+            scrollbar-width: thin;
+            scrollbar-color: #bfbfbf #f1f1f1;
+        }
+
+        /* Hide scrollbar but keep functionality (optional) */
+        @media (max-width: 768px) {
+            .chat-body {
+                /* Hide scrollbar for Chrome, Safari and Opera */
+                &::-webkit-scrollbar {
+                    display: none;
+                }
+                /* Hide scrollbar for IE, Edge and Firefox */
+                -ms-overflow-style: none;  /* IE and Edge */
+                scrollbar-width: none;  /* Firefox */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mainContainer">
+        <div class="chat-widget">
+            <div class="loading-button" id="loadingButton">
+                <span id="chatIcon">
+                    <i class="fas fa-comment-dots fa-lg"></i>
+                </span>
+            </div>
+            
+            <div class="chat-window" id="chatWindow">
+                <div class="chat-header">
+                    <div class="d-flex align-items-center">
+                        <img src="https://cdn-icons-png.flaticon.com/512/4712/4712100.png" alt="AI Robot" class="avatar">
+                        <div>
+                            <h6 class="mb-0">Doco AI</h6>
+                            <small class="opacity-75">We typically reply in few minutes.</small>
+                        </div>
+                    </div>
+                    <button class="btn text-white p-0" id="closeChat">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="chat-body" id="chatBody">
+                    <!-- Messages will be dynamically added here -->
+                </div>
+                
+                <div class="chat-footer">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Hello! What can I find for you?" id="messageInput" autocomplete="off">
+                        <button class="btn-send" id="sendMessage">
+                            <i class="fas fa-paper-plane text-white fa-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingButton = document.getElementById('loadingButton');
+            const closeChat = document.getElementById('closeChat');
+            const chatWindow = document.getElementById('chatWindow');
+            const messageInput = document.getElementById('messageInput');
+            const sendMessage = document.getElementById('sendMessage');
+            const chatBody = document.getElementById('chatBody');
+            const chatIconSpan = document.getElementById('chatIcon');
+
+            // Create a URL object
+            const urlParams = new URLSearchParams(window.location.search);
+            // Fetch specific parameters
+            const moduleName = urlParams.get('module'); 
+            console.log(moduleName);
+            let welcomeMessageShown = false;
+
+            const states = [
+                '<i class="fas fa-comment-dots fa-lg"></i>',
+                '<span style="font-size: 1rem; font-weight: bold;">AI</span>',
+            ];
+
+            let currentIndex = 0;
+
+            function toggleContent() {
+                currentIndex = (currentIndex + 1) % states.length;
+                chatIconSpan.innerHTML = states[currentIndex];
+            }
+
+            setInterval(toggleContent, 1500);
+
+            // Show chat window after loading animation
+            setTimeout(() => {
+                loadingButton.style.display = 'none';
+                chatWindow.style.display = 'block';
+                // Add a small delay before adding the show class for the animation
+                setTimeout(() => {
+                    chatWindow.classList.add('show');
+                }, 50);
+
+                if (!welcomeMessageShown) {
+                    setTimeout(() => {
+                        addMessage('Welcome to Doco-AI! 🌟 Smart Healthcare Analytics at Your Fingertips: Instantly Analyze Claim Amount and Count Based on Parameters like Procedures, Districts, Hospitals, and Yearly or Monthly Trends with Precision!', false, true);
+                        welcomeMessageShown = true;
+                    }, 300);
+                }
+            }, 2000);
+
+            closeChat.addEventListener('click', () => {
+                chatWindow.classList.remove('show');
+                setTimeout(() => {
+                    window.open(`${window.location.origin}/fileUpload.html`);
+                }, 300);
+            });
+
+            function handleRating(messageElement, ratingDiv, isPositive) {
+                const animationClass = isPositive ? 'blink-green' : 'blink-red';
+                messageElement.classList.add(animationClass);
+                
+                ratingDiv.classList.add('fade-out');
+                
+                setTimeout(() => {
+                    if (ratingDiv && ratingDiv.parentNode) {
+                        ratingDiv.parentNode.removeChild(ratingDiv);
+                    }
+                    messageElement.classList.remove(animationClass);
+                }, 1000);
+            }
+
+        //This function adds a new message to the chat body. It takes the message text, a boolean indicating if it's a user message, and a boolean for animation.
+        function addMessage(message, isUser = false, animate = false) {
+            // Remove existing rating divs
+            const existingRatingDivs = chatBody.querySelectorAll('.response-rating');
+            existingRatingDivs.forEach((ratingDiv) => {
+                if (ratingDiv && ratingDiv.parentNode) {
+                    ratingDiv.parentNode.removeChild(ratingDiv);
+                }
+            });
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            if (animate) {
+                messageDiv.classList.add('animate-message');
+            }
+
+            const iconImg = document.createElement('img');
+            iconImg.className = 'message-icon';
+            iconImg.src = isUser 
+                        ? 'https://img.icons8.com/office/40/person-male.png'
+                        : 'https://cdn-icons-png.flaticon.com/512/4712/4712100.png';
+            iconImg.alt = isUser ? 'User' : 'Bot';
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            // URL detection and conversion
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const messageWithLinks = message.replace(urlRegex, function(url) {
+                return `<a href="${url}" target="_blank" style="color: #0066cc; text-decoration: underline;">${url}</a>`;
+            });
+            
+            messageContent.innerHTML = messageWithLinks; // Using innerHTML instead of textContent to render HTML
+
+            messageDiv.appendChild(iconImg);
+            messageDiv.appendChild(messageContent);
+
+            if (!isUser) {
+                const ratingDiv = document.createElement('div');
+                ratingDiv.className = 'response-rating';
+                ratingDiv.innerHTML = `
+                    <small class="text-muted">Was this helpful?</small>
+                    <button class="rating-button thumbs-up"><i class="far fa-thumbs-up"></i></button>
+                    <button class="rating-button thumbs-down"><i class="far fa-thumbs-down"></i></button>
+                `;
+
+                chatBody.appendChild(messageDiv);
+                chatBody.appendChild(ratingDiv);
+
+                const thumbsUp = ratingDiv.querySelector('.thumbs-up');
+                const thumbsDown = ratingDiv.querySelector('.thumbs-down');
+
+                thumbsUp.addEventListener('click', () => handleRating(messageContent, ratingDiv, true));
+                thumbsDown.addEventListener('click', () => handleRating(messageContent, ratingDiv, false));
+            } else {
+                chatBody.appendChild(messageDiv);
+            }
+
+            chatBody.scrollTop = chatBody.scrollHeight;
+            return messageDiv;
+        }
+
+        //Function to add a typing indicator to the chat body.
+        function addTypingIndicator() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message bot-message`;
+            const iconImg = document.createElement('img');
+            iconImg.className = 'message-icon';
+            iconImg.src = 'https://cdn-icons-png.flaticon.com/512/4712/4712100.png';
+            iconImg.alt = 'Bot';
+            messageDiv.appendChild(iconImg)
+            // Create the typing indicator container
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+
+            // Add text content for "Analyzing"
+            const analyzingText = document.createElement('span');
+            analyzingText.textContent = 'Analyzing';
+            typingDiv.appendChild(analyzingText);
+
+            // Create the bubble loader
+            const bubbleLoader = document.createElement('div');
+            bubbleLoader.className = 'bubble-loader';
+
+            // Add individual bubbles
+            for (let i = 0; i < 3; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubbleLoader.appendChild(bubble);
+            }
+           
+            // Append the bubble loader to the typing indicator
+            typingDiv.appendChild(bubbleLoader);
+            messageDiv.appendChild(typingDiv);
+            // Append the typing indicator to the chat body
+            chatBody.appendChild(messageDiv);
+            chatBody.scrollTop = chatBody.scrollHeight;
+
+            return messageDiv;
+        }
+
+        async function sendMessageToAPI(message) {
+            const error_messages = [
+                "Oops! I couldn't process that query. Could you rephrase or be more specific?",
+                "I'm having trouble understanding your request. Would you like to try again with more details?",
+                "My apologies, but I couldn't retrieve the information you're looking for. Can you clarify your query?",
+                "Hmm, that query seems to be challenging for me. Could you provide more context?",
+                "I'm afraid I couldn't find a clear answer. Let's try a different approach."
+            ];
+
+            // A timeout promise that rejects after 25 seconds
+            //The promise takes a function as an argument, which has two parameters: resolve and reject. 
+            //In this case, the resolve parameter is not used (indicated by the underscore _), while reject is used to indicate that the promise has failed.
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Request timed out'));
+                }, 25000);
+            });
+
+            // Create the API call promise
+            // For HMIS -- https://asha.wbhealth.gov.in/CEService/HMIS/api/chatbot/query
+            const charBotUrl=moduleName.toLowerCase()==='health'?'https://ce.wbhealth.gov.in/CEService/HMIS/api/chatbot/query':'https://ce.wbhealth.gov.in/CEService/HMIS/api/modulebot/query';
+            console.log("Current URL for Chat Bot API:",charBotUrl);
+            const fetchPromise = fetch(charBotUrl, {
+                method: 'POST',
+                headers: {
+                   "Content-type": "application/json; charset=UTF-8"
+                },
+                body: JSON.stringify({
+                    query: message
+                })
+            });
+
+            try {
+                // This method takes an iterable (in this case, an array) of promises and returns a single promise that resolves or rejects as soon as one of the promises in the iterable resolves or rejects.
+                const response = await Promise.race([fetchPromise, timeoutPromise]);
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                if (data.status === 200) {
+                    if(data.data !== "-1"){
+                        return formatResponse(data.data);
+                    } else {
+                        let i = Math.floor(Math.random() * error_messages.length);
+                        return error_messages[i];
+                    }
+                } else {
+                    let i = Math.floor(Math.random() * error_messages.length);
+                    return error_messages[i];
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // If the error is a timeout or any other error, return random error message
+                let i = Math.floor(Math.random() * error_messages.length);
+                return error_messages[i];
+            }
+}
+
+        //Function to format the response to make it readable and clean
+        function formatResponse(response) {
+            const formattedResponse = response
+                .replace(/\t/g, '\n') // Replace tabs with newlines
+                .replace(/i\.\)/g, 'i.) ') // Add space after 'i.)'
+                .replace(/ii\.\)/g, 'ii.) ') // Add space after 'ii.)'
+                .replace(/or,\n/g, 'or,\n'); // Keep 'or,' properly aligned
+
+            return formattedResponse;
+        }
+
+        //This function handles sending a message when the send button is clicked or the Enter key is pressed.
+        async function handleSendMessage() {
+            const message = messageInput.value.trim();
+            if (message) {
+                // Set the input to readonly
+                messageInput.readOnly = true;
+
+                addMessage(message, true, true);
+                messageInput.value = '';
+
+                const typingIndicator = addTypingIndicator();
+
+                const response = await sendMessageToAPI(message);
+                console.log("Response....", response);
+                
+                chatBody.removeChild(typingIndicator);
+
+                // Make the input editable again after receiving a response
+                messageInput.readOnly = false;
+
+                if (response && response.error) {
+                    addMessage('Sorry, I encountered an error. Please try again later.', false, true);
+                } else {
+                    addMessage(response || 'No response received', false, true);
+                }
+            }
+        }
+
+        sendMessage.addEventListener('click', handleSendMessage);
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSendMessage();
+            }
+        });
+});
+    </script>
+</body>
+</html>
