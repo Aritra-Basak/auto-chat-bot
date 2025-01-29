@@ -677,34 +677,6 @@
         background-color: rgba(222, 31, 50, 0.818) !important;
         box-shadow: 10px 10px 5px 0px rgba(0,0,0,0.75);
     }
-    .sheet-tabs {
-            display: flex;
-            gap: 8px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-
-        .sheet-tab {
-            padding: 6px 12px;
-            background: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .sheet-tab input[type="checkbox"] {
-            margin-right: 6px;
-        }
-
-        .sheet-tab.active {
-            background: #307750;
-            color: white;
-            border-color: #307750;
-        }
 
     </style>
 </head>
@@ -831,10 +803,6 @@
                 </div>
                 <i class="fas fa-times close-icon" onclick="closeModal()"></i>
             </div>
-                <!-- Modified Sheet Tabs -->
-    <div class="sheet-tabs" id="sheetTabs">
-        <!-- Sheet tabs will be dynamically inserted here -->
-    </div>
             <div class="sheet-tabs" id="sheetTabs"></div>
             <div class="columns-grid">
                 <div class="column-section">
@@ -993,7 +961,7 @@ async function handleFiles(e) {
         }
     } catch (error) {
         console.error('Error handling files:', error);
-        showToast(error, true);
+        showToast('Error processing files. Please try again.', true);
     } finally {
         hideLoader();
     }
@@ -1010,22 +978,20 @@ async function uploadFileToAPI(file) {
         const response = await fetch('http://104.211.222.31:1215/upload', {
             method: 'POST',
             body: formData,
+            // Remove headers as FormData sets the correct Content-Type automatically
         });
 
         if (!response.ok) {
-            const errorData = await response.json(); // Parse the JSON error response
-            const errorMessage = errorData.error || 'Unknown error occurred'; // Extract error message
-            showToast(`Error uploading file to server: ${errorMessage}`, true);
-            throw new Error(errorMessage); // Throw error with API message
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        //console.log('File uploaded successfully:', data);
+        console.log('File uploaded successfully:', data);
         showToast('File uploaded to server successfully!');
         
         return data;
     } catch (error) {
-        //console.error('Error uploading file to API:', error);
+        console.error('Error uploading file to API:', error);
         showToast('Error uploading file to server. Please try again.', true);
         throw error; // Re-throw to be caught by the caller
     }
@@ -1079,50 +1045,6 @@ async function uploadFile(file, fileId) {
     });
 }
 
-function createSheetTabs(fileData) {
-    const sheetTabs = document.getElementById('sheetTabs');
-    sheetTabs.innerHTML = '';
-    
-    Object.keys(fileData.sheets).forEach(sheetName => {
-        const sheetTab = document.createElement('div');
-        sheetTab.className = `sheet-tab ${sheetName === fileData.activeSheet ? 'active' : ''}`;
-        
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = fileData.selectedSheets?.includes(sheetName) || false;
-        checkbox.onclick = (e) => {
-            e.stopPropagation();
-            toggleSheetSelection(sheetName);
-        };
-        
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = sheetName;
-        nameSpan.onclick = () => changeSheet(sheetName);
-        
-        sheetTab.appendChild(checkbox);
-        sheetTab.appendChild(nameSpan);
-        sheetTabs.appendChild(sheetTab);
-    });
-}
-
-function toggleSheetSelection(sheetName) {
-    const fileData = uploadedFiles.get(activeFileId);
-    if (!fileData) return;
-    
-    if (!fileData.selectedSheets) {
-        fileData.selectedSheets = [];
-    }
-    
-    const index = fileData.selectedSheets.indexOf(sheetName);
-    if (index === -1) {
-        fileData.selectedSheets.push(sheetName);
-    } else {
-        fileData.selectedSheets.splice(index, 1);
-    }
-    
-    uploadedFiles.set(activeFileId, fileData);
-}
-
 function openColumnsModal(fileId) {
     activeFileId = fileId;
     const fileData = uploadedFiles.get(fileId);
@@ -1130,8 +1052,20 @@ function openColumnsModal(fileId) {
     
     document.getElementById('columnModalFileName').textContent = fileData.file.name;
     
-    // Create sheet tabs with checkboxes
-    createSheetTabs(fileData);
+    // Create sheet tabs without checkboxes
+    const sheetTabs = document.getElementById('sheetTabs');
+    sheetTabs.innerHTML = '';
+    
+    Object.keys(fileData.sheets).forEach(sheetName => {
+        const sheetTab = document.createElement('div');
+        sheetTab.className = `sheet-tab ${sheetName === fileData.activeSheet ? 'active' : ''}`;
+        sheetTab.innerHTML = `<span>${sheetName}</span>`;
+        
+        // Add click handler for the span (sheet name)
+        sheetTab.querySelector('span').onclick = () => changeSheet(sheetName);
+        
+        sheetTabs.appendChild(sheetTab);
+    });
     
     // Load columns for active sheet
     loadColumnsForSheet(fileData.activeSheet);
@@ -1232,7 +1166,14 @@ function addColumnEventListeners() {
             
             input.style.display = this.checked ? 'block' : 'none';
             
-
+            if (this.checked) {
+                //If a column from Mapped Column Name is checked then it's get disabled in the Filtered Column Section...
+                filterItem.classList.add('disabled');
+                filterItem.querySelector('input[type="checkbox"]').checked = false;
+                updateFilteredColumns();
+            } else {
+                filterItem.classList.remove('disabled');
+            }
         });
     });
 
@@ -1554,66 +1495,65 @@ function generateReport() {
         }
     };
 
-    console.log(uploadedFiles);
-
     uploadedFiles.forEach((fileData, fileId) => {
-        // Only process selected sheets
-        (fileData.selectedSheets || []).forEach(sheetName => {
-            if (fileData.savedSettings?.[sheetName]) {
-                const fileObject = {
-                    filename: fileData.file.name,
-                    sheetname: sheetName, 
-                    mapped_columns: {},
-                    sorted_cols: [],
-                    keywords: {}
-                };
+        // Process each sheet in the file
+        Object.keys(fileData.savedSettings || {}).forEach(sheetName => {
+            // Create a file object for the current file
+            const fileObject = {
+                filename: fileData.file.name,
+                mapped_columns: {},
+                sorted_cols: [],
+                keywords: {}
+            };
 
-                // Rest of your existing generateReport processing remains the same
-                const mappings = fileData.savedSettings[sheetName].mappedColumns || {};
-                Object.entries(mappings).forEach(([originalName, newName]) => {
-                    fileObject.mapped_columns[originalName] = newName;
-                });
+            // Process sorted columns and filtered columns
+            const mappings = fileData.savedSettings[sheetName].mappedColumns || {};
+            Object.entries(mappings).forEach(([originalName, newName]) => {
+                fileObject.mapped_columns[originalName] = newName;
+            });
 
-                const filteredColumns = fileData.savedSettings[sheetName].filteredColumns || {};
-                const hasFilterOrder = fileData.filterOrder?.[sheetName]?.length > 0;
+            const filteredColumns = fileData.savedSettings[sheetName].filteredColumns || {};
+            const hasFilterOrder = fileData.filterOrder?.[sheetName]?.length > 0;
 
-                if (hasFilterOrder) {
-                    fileObject.sorted_cols = fileData.filterOrder[sheetName]
-                        .map(item => item.column);
-                } else {
-                    fileObject.sorted_cols = Object.entries(filteredColumns)
-                        .filter(([_, settings]) => settings.enabled)
-                        .map(([columnName]) => columnName);
-                }
+            if (hasFilterOrder) {
+                // Use the existing filter order
+                fileObject.sorted_cols = fileData.filterOrder[sheetName]
+                    .map(item => item.column);
+            } else {
+                // If no filter order exists, use the selected filtered columns in their original order
+                fileObject.sorted_cols = Object.entries(filteredColumns)
+                    .filter(([_, settings]) => settings.enabled)
+                    .map(([columnName]) => columnName);
+            }
 
-                // Process keywords
-                Object.entries(filteredColumns).forEach(([columnName, settings]) => {
-                    if (settings.enabled && settings.keyword) {
-                        const keywordArray = settings.keyword
-                            .split(',')
-                            .map(k => k.trim())
-                            .filter(k => k.length > 0);
+            // Process keywords
+            Object.entries(filteredColumns).forEach(([columnName, settings]) => {
+                if (settings.enabled && settings.keyword) {
+                    const keywordArray = settings.keyword
+                        .split(',')
+                        .map(k => k.trim())
+                        .filter(k => k.length > 0);
 
-                        if (keywordArray.length > 0) {
-                            if (!fileObject.keywords[columnName]) {
-                                fileObject.keywords[columnName] = {};
-                            }
-                            
-                            const mainValue = keywordArray[0];
-                            const values = keywordArray.length > 1 ? 
-                                keywordArray.slice(1) : 
-                                [mainValue];
-                            
-                            fileObject.keywords[columnName] = values;
+                    if (keywordArray.length > 0) {
+                        if (!fileObject.keywords[columnName]) {
+                            fileObject.keywords[columnName] = {};
                         }
+                        
+                        const mainValue = keywordArray[0];
+                        const values = keywordArray.length > 1 ? 
+                            keywordArray.slice(1) : 
+                            [mainValue];
+                        
+                        fileObject.keywords[columnName] = values;
                     }
-                });
-
-                if (Object.keys(fileObject.mapped_columns).length > 0 || 
-                    fileObject.sorted_cols.length > 0 || 
-                    Object.keys(fileObject.keywords).length > 0) {
-                    apiRequestBody.module.file.push(fileObject);
                 }
+            });
+
+
+            if (Object.keys(fileObject.mapped_columns).length > 0 || 
+                fileObject.sorted_cols.length > 0 || 
+                Object.keys(fileObject.keywords).length > 0) {
+                apiRequestBody.module.file.push(fileObject);
             }
         });
     });

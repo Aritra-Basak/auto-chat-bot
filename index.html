@@ -374,7 +374,11 @@
             const sendMessage = document.getElementById('sendMessage');
             const chatBody = document.getElementById('chatBody');
             const chatIconSpan = document.getElementById('chatIcon');
-
+            const welcomeMessage ={};
+            welcomeMessage['health']='Welcome to Doco-AI! 🌟 Smart Healthcare Analytics at Your Fingertips: Instantly Analyze Claim Amount and Count Based on Parameters like Procedures, Districts, Hospitals, and Yearly or Monthly Trends with Precision!';
+            welcomeMessage['agriculture']='Welcome to Doco-AI 🌟 Smart Agricultural Insights at Your Fingertips: Instantly Analyze Crop Yield and Harvest Trends Based on Parameters like Regions, Crop Types, Seasons, and Yearly Trends with Precision! '
+            welcomeMessage['vehicles']='Welcome to Doco-AI 🌟 Smart Vehicle Analytics at Your Fingertips: Instantly Analyze Vehicle Counts, Fuel Efficiency, and Usage Trends Based on Parameters like Vehicle Types, Models, and Yearly Insights with Precision!'
+            welcomeMessage['vehicle']='Welcome to Doco-AI 🌟 Smart Vehicle Analytics at Your Fingertips: Instantly Analyze Vehicle Counts, Fuel Efficiency, and Usage Trends Based on Parameters like Vehicle Types, Models, and Yearly Insights with Precision!'
             // Create a URL object
             const urlParams = new URLSearchParams(window.location.search);
             // Fetch specific parameters
@@ -407,7 +411,7 @@
 
                 if (!welcomeMessageShown) {
                     setTimeout(() => {
-                        addMessage('Welcome to Doco-AI! 🌟 Smart Healthcare Analytics at Your Fingertips: Instantly Analyze Claim Amount and Count Based on Parameters like Procedures, Districts, Hospitals, and Yearly or Monthly Trends with Precision!', false, true);
+                        addMessage(welcomeMessage[moduleName.toLowerCase()], false, true);
                         welcomeMessageShown = true;
                     }, 300);
                 }
