@@ -678,6 +678,25 @@
         box-shadow: 10px 10px 5px 0px rgba(0,0,0,0.75);
     }
 
+    /* Custom Scrollbar Styles */
+    ::-webkit-scrollbar {
+        width: 12px; /* Width of the scrollbar */
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1; /* Background of the scrollbar track */
+        border-radius: 10px; /* Rounded corners for the track */
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #307750; /* Color of the scrollbar thumb */
+        border-radius: 10px; /* Rounded corners for the thumb */
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #469b61; /* Color of the thumb on hover */
+    }
+
     </style>
 </head>
 <body>
@@ -1006,10 +1025,8 @@ async function uploadFile(file, fileId) {
         tab.innerHTML = `${file.name} <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
         tab.onclick = () => openColumnsModal(fileId);
         
-        const fileTabs = document.getElementById('fileTabs');
-        fileTabs.appendChild(tab);
+        document.getElementById('fileTabs').appendChild(tab);
         
-        // Hide initial info and show file info
         document.querySelector('.initial-info').style.display = 'none';
         document.getElementById('fileInfo').style.display = 'flex';
         document.getElementById('generateButton').style.display = 'flex';
@@ -1020,16 +1037,17 @@ async function uploadFile(file, fileId) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 
-                const sheets = {};
-                workbook.SheetNames.forEach(sheetName => {
-                    const sheet = workbook.Sheets[sheetName];
-                    sheets[sheetName] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                });
+                // Only process the first sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const firstSheet = workbook.Sheets[firstSheetName];
+                const sheets = {
+                    [firstSheetName]: XLSX.utils.sheet_to_json(firstSheet, { header: 1 })
+                };
                 
                 uploadedFiles.set(fileId, {
                     file: file,
                     sheets: sheets,
-                    activeSheet: workbook.SheetNames[0],
+                    activeSheet: firstSheetName,
                     mappedColumns: {},
                     filteredColumns: {},
                     savedSettings: {}
@@ -1166,14 +1184,7 @@ function addColumnEventListeners() {
             
             input.style.display = this.checked ? 'block' : 'none';
             
-            if (this.checked) {
-                //If a column from Mapped Column Name is checked then it's get disabled in the Filtered Column Section...
-                filterItem.classList.add('disabled');
-                filterItem.querySelector('input[type="checkbox"]').checked = false;
-                updateFilteredColumns();
-            } else {
-                filterItem.classList.remove('disabled');
-            }
+
         });
     });
 
@@ -1190,7 +1201,6 @@ function addColumnEventListeners() {
             }
         });
     });
-
     // Filter keyword input listeners
     document.querySelectorAll('.filter-keyword-input').forEach(input => {
         input.addEventListener('input', function() {
@@ -1219,7 +1229,6 @@ function updateMappedColumns() {
     fileData.mappedColumns[sheetName] = mappedColumns;
     uploadedFiles.set(activeFileId, fileData);
 }
-
 function updateFilteredColumns() {
     if (!activeFileId) return;
     
@@ -1244,6 +1253,7 @@ function updateFilteredColumns() {
     fileData.filteredColumns[sheetName] = filteredColumns;
     uploadedFiles.set(activeFileId, fileData);
 }
+
 
 function saveColumnSettings() {
     if (!activeFileId) return;
@@ -1485,7 +1495,6 @@ function saveFilterOrder() {
 }
 
 function generateReport() {
-    // Get the module name from the display
     const moduleName = document.getElementById('moduleNameText').textContent;
     
     const apiRequestBody = {
@@ -1496,31 +1505,32 @@ function generateReport() {
     };
 
     uploadedFiles.forEach((fileData, fileId) => {
-        // Process each sheet in the file
-        Object.keys(fileData.savedSettings || {}).forEach(sheetName => {
-            // Create a file object for the current file
+        const sheetName = fileData.activeSheet; // Use the only sheet
+        const settings = fileData.savedSettings[sheetName];
+        
+        if (settings) {
             const fileObject = {
                 filename: fileData.file.name,
+                sheetname: sheetName,
                 mapped_columns: {},
                 sorted_cols: [],
                 keywords: {}
             };
 
-            // Process sorted columns and filtered columns
-            const mappings = fileData.savedSettings[sheetName].mappedColumns || {};
+            // Process mappings
+            const mappings = settings.mappedColumns || {};
             Object.entries(mappings).forEach(([originalName, newName]) => {
                 fileObject.mapped_columns[originalName] = newName;
             });
 
-            const filteredColumns = fileData.savedSettings[sheetName].filteredColumns || {};
+            // Process filtered columns
+            const filteredColumns = settings.filteredColumns || {};
             const hasFilterOrder = fileData.filterOrder?.[sheetName]?.length > 0;
 
             if (hasFilterOrder) {
-                // Use the existing filter order
                 fileObject.sorted_cols = fileData.filterOrder[sheetName]
                     .map(item => item.column);
             } else {
-                // If no filter order exists, use the selected filtered columns in their original order
                 fileObject.sorted_cols = Object.entries(filteredColumns)
                     .filter(([_, settings]) => settings.enabled)
                     .map(([columnName]) => columnName);
@@ -1549,13 +1559,12 @@ function generateReport() {
                 }
             });
 
-
             if (Object.keys(fileObject.mapped_columns).length > 0 || 
                 fileObject.sorted_cols.length > 0 || 
                 Object.keys(fileObject.keywords).length > 0) {
                 apiRequestBody.module.file.push(fileObject);
             }
-        });
+        }
     });
 
     fetch("http://104.211.222.31:1215/create_module_patterns", {
